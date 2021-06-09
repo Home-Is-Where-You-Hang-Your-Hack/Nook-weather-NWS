@@ -1,0 +1,15 @@
+version: "2"
+services:
+  nook-nws-weather:
+    build: ./
+    container_name: "nook-nws-weather"
+    restart: unless-stopped
+    ports:
+      - "3099:3099"
+    environment:
+      - EMAIL="test@example.com"
+      - ZIP_CODE=YOUR_ZIP_CODE
+    logging:
+      options:
+        max-size: 1m
+        max-file: "3"

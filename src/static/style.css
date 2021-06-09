@@ -1,0 +1,144 @@
+/*
+NOTE TO FUTURE SELF: remember that the Nook-Simple-Touch webview is limited.
+No SVGs, no Flexbox.  The reason the styling oldschool is because the device is old.
+ */
+
+body {
+  font-family: sans-serif;
+  font-size: 15px;
+  height: 800px;
+  text-align: center;
+  width: 600px;
+}
+
+/* Layout */
+.row {
+  border-collapse: collapse;
+  display: inline-table;
+  max-width: 600px;
+  min-width: 600px;
+  width: 600px;
+}
+
+.col-1,
+.col-2,
+.col-6 {
+  display: table-cell;
+  padding: 2px 5px;
+  vertical-align: top;
+}
+
+.col-1 {
+  max-width: 90px; /* 16.5% but using px to deal with overflow text on old browser on Nook */
+  min-width: 90px; /* 16.5% but using px to deal with overflow text on old browser on Nook */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 90px;  /* 16.5% but using px to deal with overflow text on old browser on Nook */
+}
+
+.col-2 {
+  max-width:33%;
+  width: 33%;
+}
+
+.header {
+  font-size: 1.5rem;
+  height: 20px;
+  max-height: 20px;
+  min-height: 20px;
+  padding-top: 10px;
+}
+
+.footer {
+  height: 40px;
+  max-height: 40px;
+  min-height: 40px;
+  padding-bottom: 10px;
+}
+
+.main {
+  height: 730px;
+  max-height: 730px;
+  min-height: 730px;
+  overflow: hidden;
+}
+
+/* Current and today's conditions */
+.current {
+  height: 150px;
+}
+
+.current-image {
+  height: 150px;
+  padding-left: 30px;
+  width: 150px;
+}
+
+.current .temperature {
+  font-size: 6.5rem;
+  white-space: nowrap;
+}
+
+.current-description,
+.today .highlow {
+  font-size: 2.5rem;
+}
+
+.today {
+  text-align: right;
+  padding-right: 50px;
+}
+
+.detail {
+  line-height: 1.75;
+  height: 25px;
+  white-space: nowrap;
+}
+
+.week-forecast {
+  width: 560px;
+  font-size: 1.3rem;
+  padding: 20px;
+}
+
+/* Hourly forecast */
+.hourly-forecast-group {
+  max-height: 160px;
+  min-height: 160px;
+  height: 160px;
+  padding: 20px 0;
+}
+
+/* Daily forecast */
+.daily-forecast-group {
+  max-height: 160px;
+  min-height: 160px;
+  height: 160px;
+  padding: 20px 0;
+}
+
+.forecast-image {
+  height: 70px;
+  width: 70px;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+  text-decoration: underline;
+}
+
+.align-middle {
+  vertical-align: middle;
+}
+
+.label-text {
+  font-size: 0.6rem;
+}
+
+/* debugging */
+/* body{
+  border-style: solid;
+  border-width: 1px;
+} */

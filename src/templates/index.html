@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="normalize.css">
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <title>NWS Nook Weather</title>
+</head>
+<body>
+  <% if(data.isValid) { %>
+  <div class="row header"><%= DateTime.fromJSDate(data.currentWeather.lastUpdated, {}).toLocaleString(DateTime.DATE_HUGE) %></div>
+
+  <!-- *********** Current Conditions *********** -->
+  <div class="main">
+    <div class="row current">
+      <div class="col-2 align-middle">
+        <img  class="current-image" src="<%= data.currentWeather.icon %>" alt="" />
+      </div>
+      <div class="col-2 align-middle">
+        <div class="temperature"><%= (Number.isFinite(data.currentWeather.temperature) ? Math.round(data.currentWeather.temperature) : 'N/A') %>&#176;</div>
+      </div>
+      <div class="col-2 today">
+        <div>High <span class="highlow"><%= data.currentWeather.todaysHighTemperature %>&#176;</span></div>
+        <div>Low <span class="highlow"><%= data.currentWeather.todaysLowTemperature %>&#176;</span></div>
+        <% if(data.currentWeather.windSpeed) { %>
+          <div class="detail">Wind: <%= Math.round(data.currentWeather.windSpeed) %> <span class="label-text">MPH</span> <%= data.currentWeather.windDirection %></div>
+        <% }
+
+           if(data.currentWeather.humidity) { %>
+        <div class="detail">Humidity: <%= Math.round(data.currentWeather.humidity) %>%</div>
+        <% }
+
+           if(data.currentWeather.pressure) {
+        %>
+        <div class="detail">Pressure: <%= Math.round(data.currentWeather.pressure) %> mb</div>
+        <% } %>
+      </div>
+    </div>
+    <div class="row current-description"><%= data.currentWeather.shortForecast %></div>
+
+
+    <!-- *********** Hourly forecast *********** -->
+    <div class="hourly-forecast-group">
+      <div class="row">
+        <% data.hourlyForecast.forEach(function(forecastHour){ %>
+          <div class="col-1"><%=  DateTime.fromJSDate(forecastHour.startTime, {}).toFormat('h a') %></div>
+        <% }); %>
+      </div>
+      <div class="row">
+        <% data.hourlyForecast.forEach(function(forecastHour){ %>
+          <div class="col-1"><img class="forecast-image" src="<%= forecastHour.icon %>" /></div>
+        <% }); %>
+      </div>
+      <div class="row">
+        <% data.hourlyForecast.forEach(function(forecastHour){ %>
+          <div class="col-1"><%= forecastHour.temperature %> &#176;</div>
+        <% }); %>
+      </div>
+      <div class="row">
+        <% data.hourlyForecast.forEach(function(forecastHour){ %>
+          <div class="col-1 forecast-description"><%= forecastHour.shortForecast %></div>
+        <% }); %>
+      </div>
+    </div>
+
+    <!-- *********** dailyForecast forecast *********** -->
+    <div class="daily-forecast-group">
+      <div class="row title">6 Day Forecast</div>
+      <div class="row">
+        <% data.dailyForecast.forEach(function(forecastDay){ %>
+          <div class="col-1"><%= DateTime.fromJSDate(forecastDay.startTime, {}).toFormat('M/d') %></div>
+        <% }); %>
+      </div>
+      <div class="row">
+        <% data.dailyForecast.forEach(function(forecastDay){ %>
+          <div class="col-1"><%= forecastDay.dayOfWeek %></div>
+        <% }); %>
+      </div>
+      <div class="row">
+        <% data.dailyForecast.forEach(function(forecastDay){ %>
+          <div class="col-1"><img class="forecast-image" src="<%= forecastDay.icon %>" /></div>
+        <% }); %>
+      </div>
+      <div class="row">
+        <% data.dailyForecast.forEach(function(forecastDay){ %>
+          <div class="col-1">
+            <span><%= forecastDay.highTemperature %>&#176;</span>
+            <span> / </span>
+            <span><%= forecastDay.lowTemperature %>&#176;</span>
+          </div>
+        <% }); %>
+      </div>
+      <div class="row">
+        <% data.dailyForecast.forEach(function(forecastDay){ %>
+          <div class="col-1 forecast-description"><%= forecastDay.shortForecast %></div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer row">
+    <div>Forecast from <%= data.currentWeather.location %> </div>
+    <div>Last Updated:  <%= DateTime.fromJSDate(data.currentWeather.lastUpdated, {}).toLocaleString(DateTime.DATETIME_FULL)  %> </div>
+  </div>
+<% } else { %>
+  <div>Having difficulty display weather</div>
+<% } %>
+
+</body>
+</html>
