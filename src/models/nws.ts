@@ -70,7 +70,7 @@ class Nws {
       currentWeather.location = this.stationData.name;
 
       // Update NWS weather with local values, if exists
-      currentWeather = {...currentWeather, ...localWeatherData};
+      currentWeather = { ...currentWeather, ...localWeatherData };
 
       this.templateData = {
         hourlyForecast,
