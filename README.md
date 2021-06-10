@@ -8,6 +8,10 @@ or [here](./misc/Electric_Sign_v1.0.3.apk).
   * Source code available [jfriesne/Electric-Sign](https://github.com/jfriesne/Electric-Sign)
 * Docker to run the server
 
+#### Local weather
+For those who own a personal weather station or have an outdoor thermometer, local weather conditions can be appied
+using an API response through `src/apis/localWeather.ts`.  Any values provided by this API response will supercede those
+fetched from Weather.gov.
 
 #### Limitations
 * As this pulls data from NOAA stations, it will likely only work for locations in the United States.

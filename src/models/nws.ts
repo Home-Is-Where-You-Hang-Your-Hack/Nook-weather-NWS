@@ -7,6 +7,7 @@ import {
   getDailyForecast,
   getHourlyForecast,
 } from '../apis/weathergov';
+import localWeather from '../apis/localWeather';
 
 type GridpointForecast = Components.Schemas.GridpointForecast;
 type ObservationStation = Components.Schemas.ObservationStation;
@@ -59,13 +60,17 @@ class Nws {
       this.nwsDailyForecast = await getDailyForecast(this.gridPointData);
       this.nwsHourlyForecast = await getHourlyForecast(this.gridPointData);
       this.nwsCurrentForecast = await getCurrentWeather(this.stationData.stationIdentifier);
+      const localWeatherData: currentWeather = await localWeather();
 
       const hourlyForecast: displayedForecastHour[] = this.formatHourly(this.nwsHourlyForecast);
       const dailyForecast: displayedForecastDay[] = this.formatDaily(this.nwsDailyForecast);
-      const currentWeather: currentWeather = this.formatCurrent(this.nwsCurrentForecast,
+      let currentWeather: currentWeather = this.formatCurrent(this.nwsCurrentForecast,
         this.nwsDailyForecast);
 
       currentWeather.location = this.stationData.name;
+
+      // Update NWS weather with local values, if exists
+      currentWeather = {...currentWeather, ...localWeatherData};
 
       this.templateData = {
         hourlyForecast,
