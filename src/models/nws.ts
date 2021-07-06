@@ -160,8 +160,14 @@ class Nws {
       const forecasts = nwsDailyForecast.periods;
       const displayedForecastDays: displayedForecastDay[] = [];
       const forecastLength = forecasts.length;
+      const now = DateTime.local().setLocale(this.stationData.timeZone);
+      let i = 0;
 
-      for (let i = 0; i < forecastLength - 1 && displayedForecastDays.length < 6; i += 1) {
+      while (DateTime.fromISO(forecasts[i].endTime) < now) {
+        i += 1;
+      }
+
+      for (i; i < forecastLength - 1 && displayedForecastDays.length < 6; i += 1) {
         if (forecasts[i].name !== 'Tonight') {
           const forecastDay = DateTime.fromISO(forecasts[i].startTime).day;
           const newForecastDay = DateTime.fromISO(forecasts[i + 1].startTime).day;
