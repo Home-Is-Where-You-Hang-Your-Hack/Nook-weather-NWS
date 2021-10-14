@@ -13,7 +13,7 @@ export const WEATHERGOV_HOST_URL = 'https://api.weather.gov';
 const agent = superagent.agent()
                         .retry(HTTP_MAX_RETRIES)
                         .set('User-Agent', USER_AGENT)
-                        .set('accept', 'json');
+                        .set('accept', 'geo+json');
 
 type GridpointForecast = Components.Schemas.GridpointForecast;
 type GridpointForecastGeoJson = Components.Schemas.GridpointForecastGeoJson;
