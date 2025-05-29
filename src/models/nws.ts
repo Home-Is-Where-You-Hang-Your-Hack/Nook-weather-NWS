@@ -223,7 +223,7 @@ class Nws {
      * @returns
      */
     celsiusToFahrenheit = (temperature: QuantitativeValue): number => {
-      if (temperature.unitCode === 'unit:degC') {
+      if (temperature.unitCode.endsWith(':degC')) {
         return (temperature.value * (9 / 5) + 32);
       }
       return temperature.value;
