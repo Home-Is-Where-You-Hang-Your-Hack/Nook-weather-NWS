@@ -14,7 +14,7 @@ interface SearchResult {
   icon: string
   importance: number
   lat: string
-  licence: string
+  license: string
   lon: string
   place_id: string /* eslint-disable-line camelcase */
   type: string
@@ -27,7 +27,7 @@ interface SearchResult {
  */
 const zipToLatLong = async (zip: number): Promise<LatLong> => {
   // Verify the zip code is five digits in length
-  if (zip.toString().length !== 5) {
+  if (zip.toString().length < 2 || zip.toString().length > 5 ) {
     throw new Error('Zip code is not 5 digits in length');
   }
 
@@ -36,7 +36,7 @@ const zipToLatLong = async (zip: number): Promise<LatLong> => {
                    .set('User-Agent', USER_AGENT)
                    .set('accept', 'json')
                    .query({
-                     postalcode: zip,
+                     postalcode: zip.toString().padStart(5, '0'),
                      country: 'US',
                      format: 'json',
                    })
