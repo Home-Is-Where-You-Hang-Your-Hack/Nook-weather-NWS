@@ -203,7 +203,7 @@ class Nws {
      * @returns updated icon path
      */
     mapNwsIconMap = (nwsIcon: string): string => {
-      const urlPath: string[] = nwsIcon.split('?')[0].split(',')[0].split('/');
+      const urlPath: string[] = (nwsIcon || '').split('?')[0].split(',')[0].split('/');
       const condition:string = urlPath.pop();
       const isDaytime: boolean = (urlPath.pop() === 'day');
       const iconMap: NwsIconDayNightMap = NWS_WEATHER_ICON_MAP[condition];
