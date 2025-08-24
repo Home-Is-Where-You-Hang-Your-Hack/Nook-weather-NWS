@@ -1,5 +1,7 @@
 // cSpell: words Gridpoint nominatim
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { differenceInMinutes } from 'date-fns';
 
@@ -17,8 +19,10 @@ import type {
 
 type ObservationStation = Components.Schemas.ObservationStation;
 
+const DIR_NAME = path.dirname(fileURLToPath(import.meta.url));
+
 const REQUEST_LIMIT_IN_MINUTES = 1;
-const LOCATIONS_JSON_FILE = './locations.json';
+const LOCATIONS_JSON_FILE = `${DIR_NAME}/locations.json`;
 
 class Location {
   zipCode: string;

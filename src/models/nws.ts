@@ -223,6 +223,10 @@ class Nws {
       this.updateCurrentWeather.bind(this),
       (parseInt(process.env['CURRENT_FORECAST_INTERVAL_IN_MIN'] ?? '3', 10) * MINUTES_TO_MS),
     );
+
+    this.updateCurrentWeather();
+    this.updateHourlyForecast();
+    this.updateCurrentWeather();
   }
 
   /**
