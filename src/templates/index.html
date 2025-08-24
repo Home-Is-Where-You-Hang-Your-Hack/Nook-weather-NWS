@@ -7,7 +7,7 @@
 </head>
 <body>
   <% if(data.isValid) { %>
-  <div class="row header"><%= DateTime.fromJSDate(data.currentWeather.lastUpdated, {}).toLocaleString(DateTime.DATE_HUGE) %></div>
+  <div class="row header"><%= format(data.currentWeather.lastUpdated, 'PPPP') %></div>
 
   <!-- *********** Current Conditions *********** -->
   <div class="main">
@@ -42,7 +42,7 @@
     <div class="hourly-forecast-group">
       <div class="row">
         <% data.hourlyForecast.forEach(function(forecastHour){ %>
-          <div class="col-1"><%=  DateTime.fromJSDate(forecastHour.startTime, {}).toFormat('h a') %></div>
+          <div class="col-1"><%=  format(forecastHour.startTime, 'h a') %></div>
         <% }); %>
       </div>
       <div class="row">
@@ -67,7 +67,7 @@
       <div class="row title">6 Day Forecast</div>
       <div class="row">
         <% data.dailyForecast.forEach(function(forecastDay){ %>
-          <div class="col-1"><%= DateTime.fromJSDate(forecastDay.startTime, {}).toFormat('M/d') %></div>
+          <div class="col-1"><%= format(forecastDay.startTime, 'M/d') %></div>
         <% }); %>
       </div>
       <div class="row">
@@ -99,7 +99,7 @@
 
   <div class="footer row">
     <div>Forecast from <%= data.currentWeather.location %> </div>
-    <div>Last Updated:  <%= DateTime.fromJSDate(data.currentWeather.lastUpdated, {}).toLocaleString(DateTime.DATETIME_FULL)  %> </div>
+    <div>Last Updated:  <%= format(data.currentWeather.lastUpdated, 'PPpp')  %> </div>
   </div>
 <% } else { %>
   <div>Having difficulty display weather</div>

@@ -1,265 +1,291 @@
-import { DateTime } from 'luxon';
-import { NWS_WEATHER_ICON_MAP, COORDINATES } from '../constants';
+// cSpell: words Gridpoint kphs
+import { setInterval } from 'node:timers';
+
+import { TZDate } from '@date-fns/tz';
+import { getDay, isBefore } from 'date-fns';
+import { get } from 'lodash-es';
+
 import {
-  getPoints,
-  getStationInfo,
   getCurrentWeather,
   getDailyForecast,
   getHourlyForecast,
-} from '../apis/weathergov';
-import localWeather from '../apis/localWeather';
+} from 'apis/weatherGov.js';
+import {
+  celsiusToFahrenheit,
+  kphToMph,
+  mapNwsIconMap,
+  resolveBarometricPressure,
+  windCompass,
+} from 'util/helpers.js';
+
+import Location from './location.js';
+
+import type {
+  ICurrentWeather,
+  IDisplayedForecastDay,
+  IDisplayedForecastHour,
+  ITemplateData,
+} from 'types/weather.js';
 
 type GridpointForecast = Components.Schemas.GridpointForecast;
-type ObservationStation = Components.Schemas.ObservationStation;
-type QuantitativeValue = Components.Schemas.QuantitativeValue;
 type Observation = Components.Schemas.Observation;
+type QuantitativeValue = Components.Schemas.QuantitativeValue;
 
-class Nws {
-    latitudeLongitude: LatLong;
+const MINUTES_TO_MS = 60000;
 
-    gridPointData: GridPoint;
+type QuantitativeValueOrNumber = number | QuantitativeValue | null | undefined;
+const resolveQuantOrNumber = (val: QuantitativeValueOrNumber): number | null => (
+  (val as QuantitativeValue).value ?? (val as number) ?? null
+);
 
-    stationData: ObservationStation;
+const formatCurrent = (
+  nwsCurrentWeather: Observation,
+  nwsDailyForecast: GridpointForecast,
+  location: string,
+): ICurrentWeather => {
+  const {
+    temperature: temperatureObject,
+    relativeHumidity,
+    icon: iconPath,
+    timestamp,
+    windDirection: windDirectionObject,
+    windSpeed: windSpeedObject,
+    textDescription,
+    barometricPressure,
+  } = nwsCurrentWeather;
+  const dailyTemp1 = resolveQuantOrNumber(get(nwsDailyForecast, 'periods[0].temperature'));
+  const dailyTemp2 = resolveQuantOrNumber(get(nwsDailyForecast, 'periods[1].temperature'));
 
-    nwsDailyForecast: GridpointForecast;
+  const lastUpdated = timestamp ? new Date(timestamp) : null;
 
-    nwsHourlyForecast: GridpointForecast;
+  const hasDailyHighLow = dailyTemp1 !== null && dailyTemp2 !== null;
+  const todaysHighTemperature = hasDailyHighLow ? Math.max(dailyTemp1, dailyTemp2) : null;
+  const todaysLowTemperature = hasDailyHighLow ? Math.min(dailyTemp1, dailyTemp2) : null;
 
-    nwsCurrentForecast: Observation;
+  return {
+    temperature: celsiusToFahrenheit(temperatureObject),
+    humidity: relativeHumidity?.value ?? null,
+    windDirection: windCompass(windDirectionObject),
+    icon: mapNwsIconMap(iconPath),
+    lastUpdated,
+    windSpeed: kphToMph(windSpeedObject),
+    pressure: resolveBarometricPressure(barometricPressure),
+    todaysHighTemperature,
+    todaysLowTemperature,
+    shortForecast: textDescription ?? null,
+    location,
+  };
+};
 
-    templateData: templateData;
+/**
+ * Format hourly forecast for template
+ *
+ * @returns formatted forecast hours
+ */
+const formatHourly = (
+  nwsHourlyForecast: GridpointForecast,
+  timeZone: string | undefined,
+): IDisplayedForecastHour[] => {
+  const { periods: forecasts } = nwsHourlyForecast;
+  const now = timeZone ? TZDate.tz(timeZone) : Date.now();
 
-    constructor(latLong: LatLong) {
-      this.templateData = { isValid: false };
-      this.latitudeLongitude = latLong;
-      this.getStationInfo();
-    }
+  let displayedForecastHours: IDisplayedForecastHour[] = [];
+  let i = 0;
 
-    /**
-     * Fetch NWS station info
-     *
-     * @returns NWS station info
-     */
-    private async getStationInfo(): Promise<ObservationStation> {
-      this.gridPointData = await getPoints(this.latitudeLongitude);
-      this.stationData = await getStationInfo(this.gridPointData);
+  if (!forecasts) {
+    return [];
+  }
 
-      return this.stationData;
-    }
+  while (forecasts[i]?.startTime && isBefore(forecasts[i]?.startTime ?? 0, now)) {
+    i += 1;
+  }
 
-    /**
-     * Update NWS forecast data and update template data
-     *
-     * @returns template data
-     */
-    public async updateForecast():Promise<templateData> {
-      if (this.stationData.timeZone) {
-        process.env.TZ = this.stationData.timeZone;
-      }
+  const numForecast = forecasts.length;
 
-      this.nwsDailyForecast = await getDailyForecast(this.gridPointData);
-      this.nwsHourlyForecast = await getHourlyForecast(this.gridPointData);
-      this.nwsCurrentForecast = await getCurrentWeather(this.stationData.stationIdentifier);
-      const localWeatherData: currentWeather = await localWeather();
-
-      const hourlyForecast: displayedForecastHour[] = this.formatHourly(this.nwsHourlyForecast);
-      const dailyForecast: displayedForecastDay[] = this.formatDaily(this.nwsDailyForecast);
-      let currentWeather: currentWeather = this.formatCurrent(this.nwsCurrentForecast,
-        this.nwsDailyForecast);
-
-      currentWeather.location = this.stationData.name;
-
-      // Update NWS weather with local values, if exists
-      currentWeather = { ...currentWeather, ...localWeatherData };
-
-      this.templateData = {
-        hourlyForecast,
-        dailyForecast,
-        currentWeather,
-        isValid: true,
+  for (i; i < numForecast && displayedForecastHours.length < 6; i += 2) {
+    const currentForecast = forecasts[i];
+    if (currentForecast) {
+      const {
+        startTime,
+        temperatureUnit,
+        icon,
+        shortForecast,
+        temperature,
+      } = currentForecast;
+      const displayedForecastHour: IDisplayedForecastHour = {
+        startTime: startTime ? new Date(startTime) : null,
+        temperatureUnit: temperatureUnit ?? null,
+        icon: mapNwsIconMap(icon),
+        shortForecast: shortForecast ?? null,
+        temperature: (temperature as QuantitativeValue).value ?? (temperature as number) ?? null,
       };
 
-      return this.templateData;
+      displayedForecastHours = [
+        ...displayedForecastHours,
+        displayedForecastHour,
+      ];
     }
+  }
 
-    formatCurrent = (nwsCurrentForecast: Observation,
-      nwsDailyForecast: GridpointForecast):currentWeather => {
-      const currentWeather: currentWeather = {};
-      const temp1 = Number(nwsDailyForecast.periods[0].temperature);
-      const temp2 = Number(nwsDailyForecast.periods[1].temperature);
+  return displayedForecastHours;
+};
 
-      if (nwsCurrentForecast.temperature?.value !== null) {
-        currentWeather.temperature = this.celsiusToFahrenheit(nwsCurrentForecast.temperature);
-      }
-      currentWeather.humidity = nwsCurrentForecast.relativeHumidity?.value;
-      currentWeather.icon = this.mapNwsIconMap(nwsCurrentForecast.icon);
+/**
+ * Format daily forecast for template
+ *
+ * @returns formatted forecast days
+ */
+const formatDaily = (
+  nwsDailyForecast: GridpointForecast,
+  timeZone: string | undefined,
+): IDisplayedForecastDay[] => {
+  const { periods: forecasts } = nwsDailyForecast;
+  const now = timeZone ? TZDate.tz(timeZone) : Date.now();
 
-      currentWeather.lastUpdated = new Date(nwsCurrentForecast.timestamp);
+  let displayedForecastDays: IDisplayedForecastDay[] = [];
+  let i = 0;
 
-      if (nwsCurrentForecast.barometricPressure?.value) {
-        currentWeather.pressure = nwsCurrentForecast.barometricPressure.value;
+  if (!forecasts) {
+    return [];
+  }
 
-        if (nwsCurrentForecast.barometricPressure?.unitCode === 'unit:Pa') {
-          currentWeather.pressure = (nwsCurrentForecast.barometricPressure.value / 100);
-        }
-      }
+  while (forecasts[i]?.endTime && isBefore(forecasts[i]?.endTime ?? 0, now)) {
+    i += 1;
+  }
 
-      currentWeather.shortForecast = nwsCurrentForecast.textDescription;
+  const numForecast = forecasts.length;
 
-      currentWeather.todaysHighTemperature = Math.max(temp1, temp2);
-      currentWeather.todaysLowTemperature = Math.min(temp1, temp2);
+  for (i; i < numForecast - 1 && displayedForecastDays.length < 6; i += 1) {
+    const currentForecast = forecasts[i];
+    const nextForecast = forecasts[i + 1];
+    if (currentForecast && nextForecast && currentForecast.name !== 'Tonight') {
+      const forecastDay = currentForecast.startTime ? getDay(currentForecast.startTime) : null;
+      const newForecastDay = nextForecast.startTime ? getDay(nextForecast.startTime) : null;
+      const temp1 = Number(currentForecast.temperature);
+      const temp2 = Number(nextForecast.temperature);
 
-      if (nwsCurrentForecast.windSpeed?.value) {
-        currentWeather.windSpeed = this.kphsToMph(nwsCurrentForecast.windSpeed);
-      }
+      if (forecastDay === newForecastDay) {
+        const dayTime = currentForecast.isDaytime ? currentForecast : nextForecast;
 
-      if (nwsCurrentForecast.windDirection?.value) {
-        currentWeather.windDirection = this.compass(nwsCurrentForecast.windDirection.value);
-      }
-
-      return currentWeather;
-    }
-
-    /**
-     * Format hourly forecast for template
-     *
-     * @returns foreatted forecast hours
-     */
-    formatHourly = (nwsHourlyForecast: GridpointForecast): displayedForecastHour[] => {
-      const forecasts = nwsHourlyForecast.periods;
-      const displayedForecastHours: displayedForecastHour[] = [];
-      const forecastLength = forecasts.length;
-      const now = DateTime.local().setLocale(this.stationData.timeZone);
-      let i = 0;
-
-      while (DateTime.fromISO(forecasts[i].startTime) < now) {
-        i += 1;
-      }
-
-      for (i; i < forecastLength && displayedForecastHours.length < 6; i += 2) {
-        const displayedForecastHour: displayedForecastHour = {
-          startTime: new Date(forecasts[i].startTime),
-          temperatureUnit: forecasts[i].temperatureUnit,
-          icon: this.mapNwsIconMap(forecasts[i].icon),
-          shortForecast: forecasts[i].shortForecast,
-          temperature: Number(forecasts[i].temperature),
+        const displayedForecastDay: IDisplayedForecastDay = {
+          dayOfWeek: dayTime.name ?? null,
+          startTime: dayTime.startTime ? new Date(dayTime.startTime) : null,
+          temperatureUnit: dayTime.temperatureUnit ?? null,
+          icon: mapNwsIconMap(dayTime.icon),
+          shortForecast: dayTime.shortForecast ?? null,
+          lowTemperature: Math.min(temp1, temp2),
+          highTemperature: Math.max(temp1, temp2),
         };
 
-        displayedForecastHours.push(displayedForecastHour);
+        displayedForecastDays = [
+          ...displayedForecastDays,
+          displayedForecastDay,
+        ];
       }
+    }
+  }
 
-      return displayedForecastHours;
+  return displayedForecastDays;
+};
+
+class Nws {
+  location: Location;
+
+  nwsDailyForecast: GridpointForecast | undefined;
+
+  nwsDailyForecastTimerId: ReturnType<typeof setTimeout>;
+
+  nwsDailyForecastLastRequested = 0;
+
+  nwsHourlyForecast: GridpointForecast | undefined;
+
+  nwsHourlyForecastTimerId: ReturnType<typeof setTimeout>;
+
+  nwsHourlyForecastLastRequested = 0;
+
+  nwsCurrentWeather: Observation | undefined;
+
+  nwsCurrentWeatherTimerId: ReturnType<typeof setTimeout>;
+
+  constructor(zipCode: string) {
+    this.location = new Location(zipCode);
+    this.nwsDailyForecastTimerId = setInterval(
+      this.updatesDailyForecast.bind(this),
+      (parseInt(process.env['DAILY_FORECAST_INTERVAL_IN_MIN'] ?? '60', 10) * MINUTES_TO_MS),
+    );
+
+    this.nwsHourlyForecastTimerId = setInterval(
+      this.updateHourlyForecast.bind(this),
+      (parseInt(process.env['HOURLY_FORECAST_INTERVAL_IN_MIN'] ?? '15', 10) * MINUTES_TO_MS),
+    );
+
+    this.nwsCurrentWeatherTimerId = setInterval(
+      this.updateCurrentWeather.bind(this),
+      (parseInt(process.env['CURRENT_FORECAST_INTERVAL_IN_MIN'] ?? '3', 10) * MINUTES_TO_MS),
+    );
+  }
+
+  /**
+   *
+   */
+  private async updatesDailyForecast() {
+    if (!this.location?.gridPoints) {
+      await this.location?.determineNWSLocation();
     }
 
-    /**
-     * Format daily forecast for template
-     *
-     * @returns formatted forecast days
-     */
-    formatDaily = (nwsDailyForecast: GridpointForecast): displayedForecastDay[] => {
-      const forecasts = nwsDailyForecast.periods;
-      const displayedForecastDays: displayedForecastDay[] = [];
-      const forecastLength = forecasts.length;
-      const now = DateTime.local().setLocale(this.stationData.timeZone);
-      let i = 0;
+    if (this.location?.gridPoints) {
+      this.nwsDailyForecast = await getDailyForecast(this.location?.gridPoints);
+    }
+  }
 
-      while (DateTime.fromISO(forecasts[i].endTime) < now) {
-        i += 1;
-      }
-
-      for (i; i < forecastLength - 1 && displayedForecastDays.length < 6; i += 1) {
-        if (forecasts[i].name !== 'Tonight') {
-          const forecastDay = DateTime.fromISO(forecasts[i].startTime).day;
-          const newForecastDay = DateTime.fromISO(forecasts[i + 1].startTime).day;
-          const temp1 = Number(forecasts[i].temperature);
-          const temp2 = Number(forecasts[i + 1].temperature);
-
-          if (forecastDay === newForecastDay) {
-            const dayTime = forecasts[i].isDaytime ? forecasts[i] : forecasts[i + 1];
-
-            const displayedForecastDay: displayedForecastDay = {
-              dayOfWeek: dayTime.name,
-              startTime: new Date(dayTime.startTime),
-              temperatureUnit: dayTime.temperatureUnit,
-              icon: this.mapNwsIconMap(dayTime.icon),
-              shortForecast: dayTime.shortForecast,
-              lowTemperature: Math.min(temp1, temp2),
-              highTemperature: Math.max(temp1, temp2),
-            };
-
-            displayedForecastDays.push(displayedForecastDay);
-          }
-        }
-      }
-
-      return displayedForecastDays;
+  /**
+   *
+   */
+  private async updateHourlyForecast() {
+    if (!this.location?.gridPoints) {
+      await this.location?.determineNWSLocation();
     }
 
-    /**
-     * Replace Icon path
-     *
-     * @param nwsIcon - NWS Weather Icon
-     * @param isDaytime - Use day or night icon
-     * @returns updated icon path
-     */
-    mapNwsIconMap = (nwsIcon: string): string => {
-      const urlPath: string[] = (nwsIcon || '').split('?')[0].split(',')[0].split('/');
-      const condition:string = urlPath.pop();
-      const isDaytime: boolean = (urlPath.pop() === 'day');
-      const iconMap: NwsIconDayNightMap = NWS_WEATHER_ICON_MAP[condition];
+    if (this.location?.gridPoints) {
+      this.nwsHourlyForecast = await getHourlyForecast(this.location?.gridPoints);
+    }
+  }
 
-      if (!iconMap) {
-        return '';
-      }
-
-      const wiIcon = (!isDaytime && iconMap.night) ? iconMap.night : iconMap.day;
-
-      return `/png/${wiIcon}.png`;
+  private async updateCurrentWeather() {
+    if (!this.location?.stationIdentifier) {
+      await this.location?.determineNWSLocation();
     }
 
-    /**
-     * Convert Celsius to Fahrenheit
-     * @param temperature - temperature value and units
-     * @returns
-     */
-    celsiusToFahrenheit = (temperature: QuantitativeValue): number => {
-      if (temperature.unitCode.endsWith(':degC')) {
-        return (temperature.value * (9 / 5) + 32);
-      }
-      return temperature.value;
+    if (this.location?.stationIdentifier) {
+      this.nwsCurrentWeather = await getCurrentWeather(this.location?.stationIdentifier);
+    }
+  }
+
+  /**
+   * Update NWS forecast data and update template data
+   *
+   * @returns template data
+   */
+  public async updateForecast(): Promise<ITemplateData> {
+    if (!this.nwsDailyForecast || !this.nwsHourlyForecast || !this.nwsCurrentWeather) {
+      return { isValid: false };
     }
 
-    /**
-     * Kilometer per hour to miles per hour
-     *
-     * @param speed - speed value and units
-     */
-    kphsToMph = (speed: QuantitativeValue): number => {
-      if (speed.unitCode === 'unit:km_h-1') {
-        return (speed.value * (8 / 5));
-      }
-      return speed.value || 0;
-    }
+    const hourlyForecast = formatHourly(this.nwsHourlyForecast, this.location?.timeZone);
+    const dailyForecast = formatDaily(this.nwsDailyForecast, this.location?.timeZone);
+    const currentWeather = formatCurrent(
+      this.nwsCurrentWeather,
+      this.nwsDailyForecast,
+      this.location?.locationName,
+    );
 
-    /**
-     * Wind degrees to direction
-     *
-     * @param bearing - wind direction bearing angle
-     * @returns
-     */
-    compass = (bearing: number): string => {
-      // 'N': [337.5, 360],
-      let direction = 'N';
-
-      Object.keys(COORDINATES).forEach((currentDirection) => {
-        const directionRange = COORDINATES[currentDirection];
-        if (bearing > directionRange[0] && bearing <= directionRange[1]) {
-          direction = String(currentDirection);
-        }
-      });
-
-      return direction;
-    }
+    return {
+      hourlyForecast,
+      dailyForecast,
+      currentWeather,
+      isValid: true,
+    };
+  }
 }
 
 export default Nws;

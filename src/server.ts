@@ -1,86 +1,63 @@
-import * as express from 'express';
-import * as ejs from 'ejs';
-import { DateTime } from 'luxon';
-import { EOL } from 'os';
-import { DEFAULT_PORT } from './constants';
-import zipToLatLong from './apis/nominatim';
-import Nws from './models/nws';
+// cSpell: words nominatim
+import { EOL } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// TODO: Check for zip code as process enviroment
+import { format } from 'date-fns';
+import 'dotenv/config';
+import ejs from 'ejs';
+import express from 'express';
 
-class WeatherApp {
-  public app: express.Application;
+import Nws from 'models/nws.js';
 
-  public latitudeLongitude: LatLong;
+import type { ITemplateData } from 'types/weather.js';
 
-  public nwsWeather: Nws;
+const rootDirname = path.dirname(fileURLToPath(import.meta.url));
 
-  readonly PORT: number = parseInt(process.env.BIND_PORT, 10) || DEFAULT_PORT;
-
-  readonly ZIP_CODE: number = parseInt(process.env.ZIP_CODE, 10);
-
-  readonly EMAIL: string = process.env.EMAIL;
-
-  /**
-   * Constructor
-   */
-  constructor() {
-    this.app = express();
-    this.initializeWeather();
-  }
-
-  /**
-   * Initialize weather app
-   */
-  private async initializeWeather() {
-    this.latitudeLongitude = await zipToLatLong(this.ZIP_CODE);
-    this.nwsWeather = new Nws(this.latitudeLongitude);
-  }
-
-  /**
-   * Listen
-   */
-  public listen() {
-    this.app.listen(this.PORT, () => {
-      /* eslint-disable-next-line no-console */
-      console.log(`App listening on the port ${this.PORT}`);
-    });
-  }
-
-  public initializeServer() {
-    const indexHtmlPath = `${__dirname}/templates/index.html`;
-
-    // Static assets (images, CSS)
-    this.app.use(express.static(`${__dirname}/static`));
-
-    this.app.get('/', (req: express.Request, res: express.Response): void => {
-      this.nwsWeather.updateForecast().then((data: any) => {
-        ejs.renderFile(indexHtmlPath, { data, DateTime }, {}).then((x) => res.send(x));
-      });
-    });
-  }
-}
+const PORT: number = parseInt(process.env['BIND_PORT'] ?? '3099', 10);
+const ZIP_CODE: string = process.env['ZIP_CODE'] ?? '';
 
 // Verify the zip code is five digits in length
-if (String(process.env.ZIP_CODE).length !== 5) {
+if (!/^\d{5}$/.test(ZIP_CODE)) {
   throw new Error([
     'Must provide ZIP_CODE environment variable.',
     'ZIP_CODE must be 5 digits in length.',
   ].join(EOL));
-  process.exit(1);
+}
+
+// Verify the zip code is not the default
+if (ZIP_CODE === '00000') {
+  throw new Error([
+    'Must provide ZIP_CODE environment variable.',
+    '"00000" is not a ZIP_CODE.',
+  ].join(EOL));
 }
 
 // Check email
-if (!process.env.EMAIL) {
+if (!process.env['EMAIL']) {
   throw new Error([
     'Must provide EMAIL environment variable.',
     'NWS API requires a non-validated API key to prevent abuse, your email address is preferred.',
   ].join(EOL));
-  process.exit(2);
 }
 
-// Initialize Weather App
-const nwsWeatherApp = new WeatherApp();
+const nwsWeather = new Nws(ZIP_CODE);
 
-nwsWeatherApp.initializeServer();
-nwsWeatherApp.listen();
+// Initialize Weather App
+const app = express();
+
+// Static assets (images, CSS)
+app.use(express.static(path.resolve(rootDirname, './static')));
+
+const indexHtmlPath = path.resolve(rootDirname, './templates/index.html');
+app.get('/', (_, res: express.Response): void => {
+  nwsWeather.updateForecast().then((data: ITemplateData) => {
+    ejs.renderFile(indexHtmlPath, { data, format }, {}).then((x) => res.send(x));
+  });
+});
+
+// Start HTTP Server
+app.listen(PORT, () => {
+  /* eslint-disable-next-line no-console */
+  console.log(`App listening on the port ${PORT}`);
+});

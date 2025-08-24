@@ -8,11 +8,6 @@ or [here](./misc/Electric_Sign_v1.0.3.apk).
   * Source code available [jfriesne/Electric-Sign](https://github.com/jfriesne/Electric-Sign)
 * Docker to run the server
 
-#### Local weather
-For those who own a personal weather station or have an outdoor thermometer, local weather conditions can be appied
-using an API response through `src/apis/localWeather.ts`.  Any values provided by this API response will supercede those
-fetched from Weather.gov.
-
 #### Limitations
 * As this pulls data from NOAA stations, it will likely only work for locations in the United States.
 * Not all postal codes seem to work.  Querying zip codes using OpenStreetMaps' Nominatim API that associated
@@ -21,7 +16,6 @@ fetched from Weather.gov.
 * The postal code is used to find the nearest NOAA station.  Depending on your location, this may be far away.
  Find the nearest station on the [NOAA/NWS website](https://www.weather.gov).
 
-
 #### Icons
 The icons provided with the NWS forecasts are not designed for e-ink displays and look like crap.  Instead,
  icons are mapped to equivalent ones from [erikflowers/weather-icons](https://github.com/erikflowers/weather-icons).
@@ -29,15 +23,20 @@ The icons provided with the NWS forecasts are not designed for e-ink displays an
 [Table of icon mapping](./icons.md)
 
 #### Docker
-| Enviromental parameter | Required | Description |
+| Enviromental parameter | Required | Default |Description |
 | -- | -- | --|
-| `EMAIL` | Yes| NWS API requires a non-validated API key to prevent abuse.  It can be anything but prefers to use your email address.
-| `ZIP_CODE`| Yes | Location of weather forecast.  See limitations above if experiencing difficulties.
-|`BIND_PORT`| No | Port to bind HTTP server to.  Default is `3099`
+| `EMAIL` | Yes| | NWS API requires a non-validated API key to prevent abuse.  It can be anything but prefers to use your email address. |
+| `ZIP_CODE`| Yes | | Location of weather forecast.  See limitations above if experiencing difficulties. |
+|`BIND_PORT`| No | `3099` |Port to bind HTTP server to. |
+|`API_MAX_RETRIES` | No | `5` | Maximum retries for API response errors |
+| `FORCE_LOCATION_RELOAD` | No | `false` | If `true` cached location and NWS/NOAA Station is ignored and rerequested |
+| CURRENT_FORECAST_INTERVAL_IN_MIN | No | `3` | Refresh interval, in minutes, for current weather |
+| HOURLY_FORECAST_INTERVAL_IN_MIN | No | `15` | Refresh interval, in minutes, for hourly forecast |
+| DAILY_FORECAST_INTERVAL_IN_MIN | No | `60` | Refresh interval, in minutes, for daily forecast |
 
+Download or clone the NWS branch of this repo.  Build the docker image and run the container
 
-Download or clone the NWS branch of this repo.  Build the docker image and run the container.
-```BASH
+```sh
 docker build -t "nook-weather" .
 docker run -d \
            -p 3099:3099 \
@@ -46,6 +45,5 @@ docker run -d \
            --name "nook-weather" \
            nook-weather
 ```
-
 
 ![screenshot](./misc/screenshot.png)

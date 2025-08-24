@@ -1,9 +1,7 @@
-export const USER_AGENT = `Home-Is-Where-You-Hang-Your-Hack/nook-weather-${process.env.EMAIL}`;
-export const DEFAULT_PORT = 3099;
+// cSpell: words fzra tsra
+import type { INwsIconDayNightMap } from 'types/weather.js';
 
-export const HTTP_MAX_RETRIES = 5;
-
-export const NWS_WEATHER_ICON_MAP: Record<string, any> = {
+const NWS_WEATHER_ICON_MAP: Record<string, INwsIconDayNightMap> = {
   bkn: { day: 'wi-cloud' },
   blizzard: { day: 'wi-day-snow', night: 'wi-night-snow' },
   cold: { day: 'wi-thermometer-exterior' },
@@ -40,7 +38,7 @@ export const NWS_WEATHER_ICON_MAP: Record<string, any> = {
   wind_skc: { day: 'wi-day-windy', night: 'wi-strong-wind' },
 };
 
-export const COORDINATES: Record<string, any> = {
+const COORDINATES: Record<string, [number, number]> = {
   N: [0, 22.5],
   NE: [22.5, 67.5],
   E: [67.5, 112.5],
@@ -49,4 +47,9 @@ export const COORDINATES: Record<string, any> = {
   SW: [202.5, 247.5],
   W: [247.5, 292.5],
   NW: [292.5, 337.5],
+};
+
+export {
+  COORDINATES,
+  NWS_WEATHER_ICON_MAP,
 };

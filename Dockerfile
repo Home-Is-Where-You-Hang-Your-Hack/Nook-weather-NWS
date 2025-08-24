@@ -1,4 +1,4 @@
-FROM node:16-alpine AS base
+FROM node:20-alpine AS base
 
 RUN apk add --no-cache bash
 
@@ -13,4 +13,4 @@ COPY tsconfig.json /
 
 RUN npm install
 
-CMD ["/node_modules/ts-node/dist/bin.js", "--files", "/src/server.ts"]
+CMD ["npm run start"]
