@@ -13,4 +13,4 @@ COPY tsconfig.json /
 
 RUN npm install
 
-CMD ["npm run start"]
+CMD ["npm", "run", "start"]
