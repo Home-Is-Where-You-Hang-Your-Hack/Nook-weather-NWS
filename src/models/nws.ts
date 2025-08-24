@@ -2,7 +2,6 @@
 import { setInterval } from 'node:timers';
 
 import { TZDate } from '@date-fns/tz';
-import retry from 'async-retry';
 import { getDay, isBefore } from 'date-fns';
 import { get } from 'lodash-es';
 
@@ -216,20 +215,11 @@ class Nws {
   private async verifyLocationComplete() {
     // TODO: this is a bit of a hack, figure out a better way to verify all of the data
     //       with a promise without spamming the apis
-    await retry(
-      async () => {
-        const response = await this.location.determineNWSLocation();
-        if (!response) {
-          return Promise.reject();
-        }
-
-        this.initializeForecastRequests();
-        return Promise.resolve();
-      },
-      {
-        minTimeout: 5000,
-      },
-    );
+    this.location.determineNWSLocation()
+      .then(() => this.initializeForecastRequests())
+      .catch(() => {
+        setTimeout(this.verifyLocationComplete.bind(this), 1000);
+      });
   }
 
   private initializeForecastRequests() {

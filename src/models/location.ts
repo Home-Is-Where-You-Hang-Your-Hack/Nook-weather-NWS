@@ -62,7 +62,7 @@ class Location {
 
     // Do not request the same information more than once in a span.
     if (differenceInMinutes(Date.now(), new Date(this.lastRequested)) < REQUEST_LIMIT_IN_MINUTES) {
-      return null;
+      return Promise.reject();
     }
 
     this.lastRequested = Date.now();
@@ -88,7 +88,7 @@ class Location {
       };
     }
 
-    return null;
+    return Promise.reject();
   }
 
   get locationName(): string {
