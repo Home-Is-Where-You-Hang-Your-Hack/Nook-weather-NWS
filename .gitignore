@@ -1,3 +1,5 @@
 node_modules
 .mypy_cache
 src/apis/localWeather.ts
+src/models/locations.json
+

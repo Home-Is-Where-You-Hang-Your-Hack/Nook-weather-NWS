@@ -2,6 +2,7 @@
 import { setInterval } from 'node:timers';
 
 import { TZDate } from '@date-fns/tz';
+import retry from 'async-retry';
 import { getDay, isBefore } from 'date-fns';
 import { get } from 'lodash-es';
 
@@ -193,24 +194,57 @@ class Nws {
 
   nwsDailyForecast: GridpointForecast | undefined;
 
-  nwsDailyForecastTimerId: ReturnType<typeof setTimeout>;
+  nwsDailyForecastTimerId: ReturnType<typeof setTimeout> | undefined;
 
   nwsDailyForecastLastRequested = 0;
 
   nwsHourlyForecast: GridpointForecast | undefined;
 
-  nwsHourlyForecastTimerId: ReturnType<typeof setTimeout>;
+  nwsHourlyForecastTimerId: ReturnType<typeof setTimeout> | undefined;
 
   nwsHourlyForecastLastRequested = 0;
 
   nwsCurrentWeather: Observation | undefined;
 
-  nwsCurrentWeatherTimerId: ReturnType<typeof setTimeout>;
+  nwsCurrentWeatherTimerId: ReturnType<typeof setTimeout> | undefined;
 
   constructor(zipCode: string) {
     this.location = new Location(zipCode);
+    this.verifyLocationComplete();
+  }
+
+  private async verifyLocationComplete() {
+    // TODO: this is a bit of a hack, figure out a better way to verify all of the data
+    //       with a promise without spamming the apis
+    await retry(
+      async (bail) => {
+        const response = await this.location.determineNWSLocation();
+        if (!response) {
+          bail(new Error('Location is not fulled loaded yet'));
+        }
+
+        this.initializeForecastRequests();
+      },
+      {
+        minTimeout: 5000,
+      },
+    );
+  }
+
+  private initializeForecastRequests() {
+    if (
+      this.nwsDailyForecastTimerId
+      && this.nwsCurrentWeatherTimerId
+      && this.nwsHourlyForecastTimerId) {
+      return;
+    }
+
+    if (this.location.timeZone) {
+      process.env.TZ = this.location.timeZone;
+    }
+
     this.nwsDailyForecastTimerId = setInterval(
-      this.updatesDailyForecast.bind(this),
+      this.updateDailyForecast.bind(this),
       (parseInt(process.env['DAILY_FORECAST_INTERVAL_IN_MIN'] ?? '60', 10) * MINUTES_TO_MS),
     );
 
@@ -226,13 +260,13 @@ class Nws {
 
     this.updateCurrentWeather();
     this.updateHourlyForecast();
-    this.updateCurrentWeather();
+    this.updateDailyForecast();
   }
 
   /**
    *
    */
-  private async updatesDailyForecast() {
+  private async updateDailyForecast() {
     if (!this.location?.gridPoints) {
       await this.location?.determineNWSLocation();
     }

@@ -14,6 +14,7 @@ import {
 import type {
   IGridPoint,
   ILatLong,
+  ILocationRecord,
   ZipLocationRecords,
 } from 'types/location.js';
 
@@ -49,15 +50,19 @@ class Location {
     this.determineNWSLocation();
   }
 
-  async determineNWSLocation(): Promise<void> {
+  async determineNWSLocation(): Promise<ILocationRecord | null> {
     // Do not re-request the data if it exists.
     if (this.latitudeLongitude && this.gridPointData && this.stationData) {
-      return;
+      return {
+        latitudeLongitude: this.latitudeLongitude,
+        gridPointData: this.gridPointData,
+        stationData: this.stationData,
+      };
     }
 
     // Do not request the same information more than once in a span.
     if (differenceInMinutes(Date.now(), new Date(this.lastRequested)) < REQUEST_LIMIT_IN_MINUTES) {
-      return;
+      return null;
     }
 
     this.lastRequested = Date.now();
@@ -74,6 +79,16 @@ class Location {
     if (this.latitudeLongitude && this.gridPointData && this.stationData) {
       this.writeJsonStore();
     }
+
+    if (this.latitudeLongitude && this.gridPointData && this.stationData) {
+      return {
+        latitudeLongitude: this.latitudeLongitude,
+        gridPointData: this.gridPointData,
+        stationData: this.stationData,
+      };
+    }
+
+    return null;
   }
 
   get locationName(): string {
