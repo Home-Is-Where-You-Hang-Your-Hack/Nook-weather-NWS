@@ -30,23 +30,25 @@ const URL = 'https://nominatim.openstreetmap.org/search';
  * @param zip - US Postal code/zip code
  * @returns Promise<ISearchResult>
  */
-const zipToLatLong = async (zip: string): Promise<ILatLong | undefined> => {
-  const res: SearchResult[] = await apiRequest.query({
+const zipToLatLong = async (zip: string): Promise<ILatLong> => {
+  const res = await apiRequest.query({
     postalcode: zip,
     country: 'US',
     format: 'json',
   })
     .get(URL)
-    .json();
+    .json()
+    .catch(() => {
+      // TODO: add debugging level log.
+    });
 
-  if (!res[0]) {
-    return undefined;
+  if (!Array.isArray(res) || !res[0]) {
+    return Promise.reject();
   }
 
-  return {
-    latitude: res[0].lat,
-    longitude: res[0].lon,
-  } as ILatLong;
+  const { lat: latitude, lon: longitude } = res[0] as SearchResult;
+
+  return { latitude, longitude };
 };
 
 export default zipToLatLong;

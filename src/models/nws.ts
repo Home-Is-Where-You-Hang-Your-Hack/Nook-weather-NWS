@@ -263,7 +263,13 @@ class Nws {
     }
 
     if (this.location?.gridPoints) {
-      this.nwsDailyForecast = await getDailyForecast(this.location?.gridPoints);
+      getDailyForecast(this.location?.gridPoints)
+        .then((updatedWeather) => {
+          this.nwsDailyForecast = updatedWeather;
+        })
+        .catch(() => {
+          // TODO: add debugging level log.
+        });
     }
   }
 
@@ -276,7 +282,13 @@ class Nws {
     }
 
     if (this.location?.gridPoints) {
-      this.nwsHourlyForecast = await getHourlyForecast(this.location?.gridPoints);
+      getHourlyForecast(this.location?.gridPoints)
+        .then((updatedWeather) => {
+          this.nwsHourlyForecast = updatedWeather;
+        })
+        .catch(() => {
+          // TODO: add debugging level log.
+        });
     }
   }
 
@@ -286,7 +298,13 @@ class Nws {
     }
 
     if (this.location?.stationIdentifier) {
-      this.nwsCurrentWeather = await getCurrentWeather(this.location?.stationIdentifier);
+      getCurrentWeather(this.location?.stationIdentifier)
+        .then((updatedWeather) => {
+          this.nwsCurrentWeather = updatedWeather;
+        })
+        .catch(() => {
+          // TODO: add debugging level log.
+        });
     }
   }
 
