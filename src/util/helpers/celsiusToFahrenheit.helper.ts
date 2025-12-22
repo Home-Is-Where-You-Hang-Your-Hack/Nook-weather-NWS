@@ -10,8 +10,8 @@ const celsiusToFahrenheit = (temperature: QuantitativeValue | undefined): number
     return null;
   }
 
-  if (temperature.value && temperature.unitCode?.endsWith(':degC')) {
-    return (temperature.value * (9 / 5) + 32);
+  if (temperature.unitCode?.endsWith(':degC')) {
+    return ((temperature.value ?? 0) * (9 / 5) + 32);
   }
   return temperature.value ?? null;
 };
